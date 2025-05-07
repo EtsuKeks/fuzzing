@@ -3,6 +3,7 @@ module github.com/josephburnett/jd/v2
 go 1.24.0
 
 require (
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6
 	github.com/go-openapi/jsonpointer v0.21.0
 	github.com/stretchr/testify v1.10.0
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82

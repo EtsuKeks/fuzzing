@@ -13,8 +13,10 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
+	github.com/AdaLogics/go-fuzz-headers v0 
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	syscall/js v1.24.3
 )
 
 replace github.com/josephburnett/jd/v2 => ./v2
