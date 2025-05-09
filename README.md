@@ -131,8 +131,8 @@ func fuzzNaive(t *testing.T, aStr, bStr string) {
 		t.Errorf("nil parsed input: %q", bStr)
 		return
 	}
-    // Тут дальше идет код, в котором авторы дергают различные функции своей библиотеки, 
-    // и выходят из теста, если что то идет не по плану
+	// Тут дальше идет код, в котором авторы дергают различные функции своей библиотеки, 
+	// и выходят из теста, если что то идет не по плану
 }
 ```
 
@@ -160,7 +160,7 @@ func FuzzJdMy(f *testing.F) {
 }
 
 func fuzzMy(t *testing.T, input []byte) {
-    // Тут идет фаззинг библиотек, прямо как у авторов, на основе единственно массива байт input
+	// Тут идет фаззинг библиотек, прямо как у авторов, на основе единственно массива байт input
 }
 ```
 
@@ -171,11 +171,11 @@ func fuzzMy(t *testing.T, input []byte) {
 Мы почти закончили с генерацией файлов - осталась последняя проблема - они слишком чистые. В книге описывается множество способов испортить полученные валидные строки, но я сделал по-простому: в v2/utils.go описана функция mutateBytesArr(), которая с вероятностью mutateArrProb в рандомных $n<10$ местах берет произвольные байты и множит их на сгенерированные у cons. В файле v2/utils_test.go можно найти юнит-тесты к этой функции и прочим вспомогательным. Под конец стоит только еще поменять местами попорченные массивы байт с некоторой вероятностью swapProb, так как особенностью реализации BuildJSON() и GenerateOverlapJSON() функций является то, что в среднем последняя генерирует файлы короче по вложенности, чем первая. Собирая все вместе, наша версия выглядит так:
 ```
 func fuzzMy(t *testing.T, input []byte) {
-    .....
+	.....
 	// ^ Некоторые манимуляции над массивом input, чтобы он был достаточно длинный, 
-    // чтоб его можно было нарезать на большое количество строк, чисел и прочего
+	// чтоб его можно было нарезать на большое количество строк, чисел и прочего
 	cons := fuzzhdr.NewConsumer(input)
-    // Конфиг фаззинга:
+	// Конфиг фаззинга:
 	const (
 		maxDepth      = 3
 		renameProb    = 20
@@ -187,10 +187,10 @@ func fuzzMy(t *testing.T, input []byte) {
 	origVal, err := BuildJSON(cons, maxDepth)
 	compVal, err := GenerateOverlapJSON(cons, origVal, renameProb, mutateProb)
 
-    .....
-    // ^ Приводим наш origVal, compVal к массивам байт и валидируем json-схемы
+	.....
+	// ^ Приводим наш origVal, compVal к массивам байт и валидируем json-схемы
 
-    // С вероятностью mutateArrProb портим origBytes - наш orig json-объект
+	// С вероятностью mutateArrProb портим origBytes - наш orig json-объект
 	n, err := getRandomIntUpToN(cons, 100)
 	if err != nil {
 		t.Fatalf("fuzzhdr consumer error: %v", err)
@@ -202,10 +202,10 @@ func fuzzMy(t *testing.T, input []byte) {
 		}
 	}
 
-    ........
-    // ^ Поступаем аналогично с compBytes
+	........
+	// ^ Поступаем аналогично с compBytes
 
-    // С вероятностью swapProb меняем origBytes и compBytes местами: 
+	// С вероятностью swapProb меняем origBytes и compBytes местами: 
 	n, err = getRandomIntUpToN(cons, 100)
 	if err != nil {
 		t.Fatalf("fuzzhdr consumer error: %v", err)
@@ -216,7 +216,7 @@ func fuzzMy(t *testing.T, input []byte) {
 
 	aStr := string(origBytes)
 	bStr := string(compBytes)
-    // Продолжаем вызывать над aStr и bStr все те же манипуляции, что и у авторов изначально
+	// Продолжаем вызывать над aStr и bStr все те же манипуляции, что и у авторов изначально
 }
 ```
 
