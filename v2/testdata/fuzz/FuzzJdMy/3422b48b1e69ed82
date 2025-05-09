@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("79&&y&Xc0110*0%01000000000B802\xba0")

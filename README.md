@@ -1,130 +1,44 @@
-[![Go Report Card](https://goreportcard.com/badge/josephburnett/jd)](https://goreportcard.com/report/josephburnett/jd)
+## Фаззинг-тестирование библиотеки jd (подсчет контрольных сумм уже показывал раньше, тут будет вестись речь только про fuzzing)
 
-# JSON diff and patch
-
-`jd` is a commandline utility and Go library for diffing and patching
-JSON and YAML values. It supports a native `jd` format (similar to
-unified format) as well as JSON Merge Patch ([RFC
-7386](https://datatracker.ietf.org/doc/html/rfc7386)) and a subset of
-JSON Patch ([RFC
-6902](https://datatracker.ietf.org/doc/html/rfc6902)). Try it out at
-http://play.jd-tool.io/.
-
-## Example
-
-Diff `jd a.json b.json`:
-
-```JSON
-{"foo":["bar","baz"]}
-```
-
-```JSON
-{"foo":["bar","bam","boom"]}
-```
-
-Output:
+# jd - это утилита, написанная на Go, и позволяющяя делать примерно следующее. Пусть есть файлы a.json и b.json:
 
 ```DIFF
-@ ["foo",1]
-  "bar"
-- "baz"
-+ "bam"
-+ "boom"
+@ ["a"]
+- 1
++ 2
+```
+
+```DIFF
+@ [2]
+[
++ {"foo":"bar"}
 ]
 ```
 
-## Features
-
-1. Human-friendly format, similar to Unified Diff.
-2. Produces a minimal diff between array elements using LCS algorithm.
-3. Adds context before and after when modifying an array to prevent bad patches.
-4. Create and apply structural patches in jd, patch (RFC 6902) and merge (RFC 7386) patch formats.
-5. Translates between patch formats.
-6. Includes Web Assembly-based UI (no network calls).
-
-## Installation
-
-GitHub Action:
-
-```yaml
-    - name: Diff A and B
-      id: diff
-      uses: josephburnett/jd@v2.1.2
-      with:
-        args: a.json b.json
-    - name: Print the diff
-      run: echo '${{ steps.diff.outputs.output }}'
-    - name: Check the exit code
-      run: if [ "${{ steps.diff.outputs.exit_code }}" != "1" ]; then exit 1; fi
-```
-
-To get the `jd` commandline utility:
-* run `brew install jd`, or
-* run `go install github.com/josephburnett/jd/v2/jd@latest`, or
-* visit https://github.com/josephburnett/jd/releases/latest and download the pre-built binary for your architecture/os, or
-* run in a Docker image `jd(){ docker run --rm -i -v $PWD:$PWD -w $PWD josephburnett/jd "$@"; }`.
-
-To use the `jd` web UI:
-* visit http://play.jd-tool.io/, or
-* run `jd -port 8080` and visit http://localhost:8080.
-
-Note: to include the UI when building from source, use the Makefile.
-
-## Command line usage
+# Тогда такая команда: 
 
 ```
-Usage: jd [OPTION]... FILE1 [FILE2]
-Diff and patch JSON files.
-
-Prints the diff of FILE1 and FILE2 to STDOUT.
-When FILE2 is omitted the second input is read from STDIN.
-When patching (-p) FILE1 is a diff.
-
-Options:
-  -color       Print color diff.
-  -p           Apply patch FILE1 to FILE2 or STDIN.
-  -o=FILE3     Write to FILE3 instead of STDOUT.
-  -set         Treat arrays as sets.
-  -mset        Treat arrays as multisets (bags).
-  -setkeys     Keys to identify set objects
-  -yaml        Read and write YAML instead of JSON.
-  -port=N      Serve web UI on port N
-  -precision=N Maximum absolute difference for numbers to be equal.
-               Example: -precision=0.00001
-  -f=FORMAT    Read and write diff in FORMAT "jd" (default), "patch" (RFC 6902) or
-               "merge" (RFC 7386)
-  -t=FORMATS   Translate FILE1 between FORMATS. Supported formats are "jd",
-               "patch" (RFC 6902), "merge" (RFC 7386), "json" and "yaml".
-               FORMATS are provided as a pair separated by "2". E.g.
-               "yaml2json" or "jd2patch".
-
-Examples:
-  jd a.json b.json
-  cat b.json | jd a.json
-  jd -o patch a.json b.json; jd patch a.json
-  jd -set a.json b.json
-  jd -f patch a.json b.json
-  jd -f merge a.json b.json
+$ jd a.json b.json
 ```
 
-#### Command Line Option Details
+# Выдаст примерно следующее:
 
-`setkeys` This option determines what keys are used to decide if two
-objects 'match'. Then the matched objects are compared, which will
-return a diff if there are differences in the objects themselves,
-their keys and/or values. You shouldn't expect this option to mask or
-ignore non-specified keys, it is not intended as a way to 'ignore'
-some differences between objects.
+```DIFF
+@ ["Movies",67,"Title"]
+- "Dr. Strangelove"
++ "Dr. Evil Love"
+@ ["Movies",67,"Actors","Dr. Strangelove"]
+- "Peter Sellers"
++ "Mike Myers"
+@ ["Movies",102]
+  {"Title":"Terminator","Actors":{"Terminator":"Arnold"}}
++ {"Title":"Austin Powers","Actors":{"Austin Powers":"Mike Myers"}}
+]
+```
 
-## Library usage
+# Но она может использоваться и как библиотека. Авторы реализовали множество полезных методов, с помощью которых можно, например, читать строку и парсить ее в json функцией ReadJsonString, потом звать на одном из json-ов метод Diff, передавая туда другой json, и переводить этот diff в строку методом Render:
 
-Note: import only release commits (`v2.Y.Z`) because `master` can be unstable.
-
-Note: the `v2` library replaces the v1 (`lib`) library. V2 adds diff
-context, minimal array diffs and hunk-level metadata. However the
-format is not backward compatable. You should use `v2`.
-
-```GO
+```
 import (
 	"fmt"
 	jd "github.com/josephburnett/jd/v2"
@@ -141,123 +55,258 @@ func ExampleJsonNode_Diff() {
 	// + "baz"
 	// ]
 }
+```
 
-func ExampleJsonNode_Patch() {
-	a, _ := jd.ReadJsonString(`["foo"]`)
-	diff, _ := jd.ReadDiffString(`
-@ [1]
-  "foo"
-+ "bar"
-]
-`
-	b, _ := a.Patch(diff)
-	fmt.Print(b.Json())
-	// Output:
-	// ["foo","bar"]
+# Возникает вопрос, как же профазить такую библиотеку? Авторы пришли со своим решением, и поступили вот как. Ниже приведено начало файла v2/fuzz_naive_test.go - там хранилась реализация fuzzing-тестирования библиотеки, предложенная самими авторами, я переименовал ее, чтобы поместить свою версию рядом. Вот как выглядит их код:
+
+```
+package jd
+
+import (
+	"strconv"
+	"testing"
+)
+
+var corpus = []string{
+	``,  // void
+	` `, // void
+	`null`,
+	`0`,
+	`1`,
+	`""`,
+	`"foo"`,
+	`"bar"`,
+	`"null"`,
+	`[]`,
+	`[null]`,
+	`[null,null,null]`,
+	`[1]`,
+	`[1,2,3]`,
+	`[{},[],3]`,
+	`[1,{},[]]`,
+	`{}`,
+	`{"foo":"bar"}`,
+	`{"foo":null}`,
+	`{"foo":1}`,
+	`{"foo":[]}`,
+	`{"foo":[null]}`,
+	`{"foo":[1]}`,
+	`{"foo":[1,2,3]}`,
+	`{"foo":[1,null,3]}`,
+	`{"foo":{}}`,
+	`{"foo":{"bar":null}}`,
+	`{"foo":{"bar":1}}`,
+	`{"foo":{"bar":[]}}`,
+	`{"foo":{"bar":[1,2,3]}}`,
+	`{"foo":{"bar":{}}}`,
+}
+
+func FuzzJdNaive(f *testing.F) {
+	for _, a := range corpus {
+		_, err := ReadJsonString(a)
+		if err != nil {
+			f.Errorf("corpus entry not valid JSON: %q", a)
+		}
+		for _, b := range corpus {
+			f.Add(a, b)
+		}
+	}
+	f.Fuzz(fuzzNaive)
+}
+
+func fuzzNaive(t *testing.T, aStr, bStr string) {
+	a, err := ReadJsonString(aStr)
+	if err != nil {
+		return
+	}
+	if a == nil {
+		t.Errorf("nil parsed input: %q", aStr)
+		return
+	}
+	b, err := ReadJsonString(bStr)
+	if err != nil {
+		return
+	}
+	if b == nil {
+		t.Errorf("nil parsed input: %q", bStr)
+		return
+	}
+    // Тут дальше идет код, в котором авторы дергают различные функции своей библиотеки, 
+    // и выходят из теста, если что то идет не по плану
 }
 ```
 
-## Diff language
+# Кратко поясню как работает fuzzing-тестирование на Go: оно вызывается командой "go test -fuzz=FuzzTarget", находиться при этом надо в том модуле (читай-папке), где объявлена fuzzing-функция FuzzTarget. Что происходит у авторов в их функции? Они проходят по своему списку из валидных json-строк, и добавляют функцией f.Add() пары (a, b) в своей корпус тестирования, где (a, b) - всевозможные пары, которые можно построить над их списком corpus. Предварительно они проверяют, что каждая строка в массиве corpus - валидный json-файл, вызывая ReadJsonString(a) и проверяя отсутствие ошибок (if err != nil). После формирования своего корпуса тестирования, они зовут f.Fuzz(fuzzNaive), где fuzzNaive - функция, принимающая "t *testing.T" - вспомогательный объект тестирования, через который можно всякое логировать и выходить из тестирования в случае, если ожидаемое поведение было нарушено, а также aStr и bStr. Так вот aStr и bStr - это функции, которые гошный фаззер подает самостоятельно, основываясь на корпусе, в который предварительно мы надобавляли все возможные пары, на их мутированных вариациях, которые фаззер сам вычисляет исходя из внутренних метрик покрытия, и на добавке к корпусу - интересных мутациях, которые он для себя отметил и сохранил.
 
-Note: this is the v1 grammar. Needs to be updated with v2.
+# При таком подходе ясно, что большинство мутированных пар (aStr, bStr) просто-напросто не прошли бы первичные проверки ReadJsonString(), которые производят авторы в самом начале своего fuzzNaive(), и были бы выброшены из рассмотрения мгновенно. А если бы и прошли проверку, оказались бы неинтересными к тестированию - фаззер ведь глупый, он не генерит на их основе осмысленные вложенные структуры, не парсит их смысл и вообще ничего об этом всем не знает, попробовав поменяв ключи в словарях битовыми сдвигами и прочим, он не сможет продвинуться дальше по тестированию, не сможет например погенерировать сложные вложенные структуры, чтобы погенерить осмысленный разумный diff, не сможет рассмотреть всякие corner-case-ы, которые могли бы возникнуть при больших арбитрарных входах в тестирующую функцию.
 
-![Railroad diagram of EBNF](/ebnf.png)
+# Такая проблема возникает сплошь и рядом, и не является специфичной для Go. Есть книга "The Fuzzing Book", в которой рассматривается как раз это проблема. Если вкраце, подход заключается в том, чтобы запрограммировать свод правил, в рамках которого может быть сгенерирован тот или иной fuzzing-вход. Используя этот набор правил, называемый грамматикой, предлагается генерировать осмысленные запросы произвольной сложности и длины. Я попробовал сделать все это на примере [jq]{https://github.com/itchyny/gojq}, наивно полагая что язык запросов, рассматриваемый там, там простой и с его грамматикой будет легко разобраться, но так и не осилил реализацию. Зато это легко делается для генерации произвольных json-структур, потому я и решил сменить фокус внимания на библиотеку, которая измеряет разницу между json-файлами - так можно остановиться на достигнутом, а с jq разобраться уже потом.
 
-- A diff is zero or more sections
-- Sections start with a `@` header and the path to a node
-- A path is a JSON list of zero or more elements accessing collections
-- A JSON number element (e.g. `0`) accesses an array
-- A JSON string element (e.g. `"foo"`) accesses an object
-- An empty JSON object element (`{}`) accesses an array as a set or multiset
-- After the path is one or more removals or additions, removals first
-- Removals start with `-` and then the JSON value to be removed
-- Additions start with `+` and then the JSON value to added
+# Вот как я поступил. На go написана библиотека go-fuzz-headers - она используется такими крупными проектами как Helm и Istio для фаззинга своих продуктов. Делает она следующее: фаззер, помимо описанных выше возможностей, может делать так:
 
-### EBNF
+```
+package jd
 
-```EBNF
-Diff ::= ( '@' '[' ( 'JSON String' | 'JSON Number' | 'Empty JSON Object' )* ']' '\n' ( ( '-' 'JSON Value' '\n' )+ | '+' 'JSON Value' '\n' ) ( '+' 'JSON Value' '\n' )* )*
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+
+	fuzzhdr "github.com/AdaLogics/go-fuzz-headers"
+)
+
+func FuzzJdMy(f *testing.F) {
+	f.Fuzz(fuzzMy)
+}
+
+func fuzzMy(t *testing.T, input []byte) {
+    // Тут идет фаззинг библиотек, прямо как у авторов, на основе единственно массива байт input
+}
 ```
 
-### Examples
+# Тут мы не населяем корпус совсем ничем, полностью отказываясь от предыдущего подхода, а всего лишь говорим, что наша фаззинг-функция fuzzMy принимает массив байт input. Фаззер, располагая этой информацией, будет предоставлять его нам, оптимизируя некоторым своим внутренним образом от теста к тесту на основе инормации о покрытии в прошедших тестах. Так вот, библиотека go-fuzz-headers позволяет создать объект cons: "cons := fuzzhdr.NewConsumer(input)", который по сути нарезает этот input на отдельные байты, и может сгенерировать нам bool своим методом cons.GetBool(), или int методом cons.GetBool(). Это не только удобно и интегрировано с гошным фаззером, но и воспроизводимо, в отличие от многих библиотек, старающихся сгенерировать максимально рандомные значения. Используя этот cons я реализовал функцию BuildJSON() в файле v2/build_orig.go. Эта функция генерирует рекурсивным образом валидную и совершенно рандомную json-структуру, ее максимальную глубину можно настроить. Я не буду углубляться в детали ее реализации, просто скажу, что она позволяет сгенерировать максимально рандомный и разнообразный json объект на основе input, который держит cons. Чтобы понять ее работу можно обратиться к юнит-тесту, который я для нее написал, он расположен по пути v2/build_json_test.go .
 
-```DIFF
-@ ["a"]
-- 1
-+ 2
+# Дальше надо заметить следующее: мало сгенерировать два рандомных json-а. Надо чтобы они пересекались по некоторому подмножетсву своих полей, и надо сделать это максимально разнообразно. Не погружаясь в детали, расскажу о функции GenerateOverlapJSON(), которую я для этого реализовал. Эта функция написана в файле v2/build_comp.go, а тесты к ней можно найти в v2/build_comp_test.go . Работает она так: мы принимаем оригинальный json - orig. С вероятностью mutateProb\% мы сразу же мутируем - что означает вызов BuildJSON() с той же глубиной, что и у orig - то есть генерируем максимально произвольный json-файл взамен orig-у. Если вероятность не сработала, мы смотрим что именно за объект получили. Если это, напрмер, мапа из стринга в json-объект, то мы поступаем так: генерируем новый размер этой мапы newSize, и генерируем количество элементов, которые возьмем из старой мапы n. n значений мы берем из старой мапы, вероятностью renameProb меняя название ключа на новое, а newSize-n объектов генерируем новыми функцией BuildJSON() и кладем по рандомно сгенерированным ключам. С массивами мы поступаем похожим образом. Как итог мы получаем произвольный json-объект, имеющий нетривиальное пересечение с оригиналом.
+
+# Мы почти закончили с генерацией файлов - осталась последняя проблема - они слишком чистые. В книге описывается множество способов испортить полученные валидные строки, но я сделал по-простому: в v2/utils.go описана функция mutateBytesArr(), которая с вероятностью mutateArrProb в рандомных $n<10$ местах берет произвольные байты и множит их на сгенерированные у cons. В файле v2/utils_test.go можно найти юнит-тесты к этой функции и прочим вспомогательным. Под конец стоит только еще поменять местами попорченные массивы байт с некоторой вероятностью swapProb, так как особенностью реализации BuildJSON() и GenerateOverlapJSON() функций является то, что в среднем последняя генерирует файлы короче по вложенности, чем первая. Собирая все вместе, наша версия выглядит так:
+```
+func fuzzMy(t *testing.T, input []byte) {
+    .....
+	// ^ Некоторые манимуляции над массивом input, чтобы он был достаточно длинный, 
+    // чтоб его можно было нарезать на большое количество строк, чисел и прочего
+	cons := fuzzhdr.NewConsumer(input)
+    // Конфиг фаззинга:
+	const (
+		maxDepth      = 3
+		renameProb    = 20
+		mutateProb    = 25
+		mutateArrProb = 25
+		swapProb      = 50
+	)
+
+	origVal, err := BuildJSON(cons, maxDepth)
+	compVal, err := GenerateOverlapJSON(cons, origVal, renameProb, mutateProb)
+
+    .....
+    // ^ Приводим наш origVal, compVal к массивам байт и валидируем json-схемы
+
+    // С вероятностью mutateArrProb портим origBytes - наш orig json-объект
+	n, err := getRandomIntUpToN(cons, 100)
+	if err != nil {
+		t.Fatalf("fuzzhdr consumer error: %v", err)
+	}
+	if n < mutateArrProb {
+		origBytes, err = mutateBytesArr(origBytes, cons)
+		if err != nil {
+			t.Fatalf("MutateJson on orig failed: %v", err)
+		}
+	}
+
+    ........
+    // ^ Поступаем аналогично с compBytes
+
+    // С вероятностью swapProb меняем origBytes и compBytes местами: 
+	n, err = getRandomIntUpToN(cons, 100)
+	if err != nil {
+		t.Fatalf("fuzzhdr consumer error: %v", err)
+	}
+	if n < swapProb {
+		origBytes, compBytes = compBytes, origBytes
+	}
+
+	aStr := string(origBytes)
+	bStr := string(compBytes)
+    // Продолжаем вызывать над aStr и bStr все те же манипуляции, что и у авторов изначально
+}
 ```
 
-```DIFF
-@ [2]
-[
-+ {"foo":"bar"}
-]
+# Построив максимально арбитрарные пересекающиеся объекты и помутировав их, получаем строки aStr и bStr, над которыми уже производим все те же действия, что и авторы библиотеки. Перейдем в тестированию авторского (naive) и моего (my) решений. Сначала очистим fuzzing-кэш языка Go (там он хранит все корпуса ко всем fuzzing-функциям во всех проектах, которые уже успел выучить к данному моменту), а также очистим папки testdata/fuzz/FuzzJdMy и testdata/fuzz/FuzzJdNaive - туда мы перенесем все корпуса, выученные го:
+```
+$ go clean --fuzzcache
+$ rm -rf testdata/fuzz/FuzzJdMy/*
+$ rm -rf testdata/fuzz/FuzzJdNaive/*
 ```
 
-```DIFF
-@ ["Movies",67,"Title"]
-- "Dr. Strangelove"
-+ "Dr. Evil Love"
-@ ["Movies",67,"Actors","Dr. Strangelove"]
-- "Peter Sellers"
-+ "Mike Myers"
-@ ["Movies",102]
-  {"Title":"Terminator","Actors":{"Terminator":"Arnold"}}
-+ {"Title":"Austin Powers","Actors":{"Austin Powers":"Mike Myers"}}
-]
+# Теперь запустим тестирование библиотекой авторов, будем производить его на 12 ядрах (го сам узнает это значение) в течении 10-ти минут:
+```
+$ go test -fuzz=FuzzJdMy -fuzztime=600s
 ```
 
-```DIFF
-@ ["Movies",67,"Tags",{}]
-- "Romance"
-+ "Action"
-+ "Comedy"
+# Если за первую пинуту теста авторский подход сумел найти 500 новых интересных входов, то за последние 3 минуты не смог и 50-ти, то есть поиск новых входов у авторов со временем сильно деградирует, и не имеет большого смысла держать фаззинг запущенным дольше. Вот, кстати, как выглядит результат этой команды:
+```
+$ go test -fuzz=FuzzJdNaive -fuzztime=600s
+fuzz: elapsed: 0s, gathering baseline coverage: 0/961 completed
+fuzz: elapsed: 2s, gathering baseline coverage: 961/961 completed, now fuzzing with 12 workers
+fuzz: elapsed: 3s, execs: 20346 (6782/sec), new interesting: 69 (total: 1030)
+fuzz: elapsed: 6s, execs: 189608 (56418/sec), new interesting: 202 (total: 1163)
+fuzz: elapsed: 9s, execs: 349930 (53434/sec), new interesting: 237 (total: 1198)
+fuzz: elapsed: 12s, execs: 526331 (58790/sec), new interesting: 277 (total: 1238)
+...
+fuzz: elapsed: 9m57s, execs: 15273931 (32509/sec), new interesting: 846 (total: 1807)
+fuzz: elapsed: 10m0s, execs: 15273931 (0/sec), new interesting: 846 (total: 1807)
+fuzz: elapsed: 10m1s, execs: 15273931 (0/sec), new interesting: 846 (total: 1807)
+PASS
+ok      github.com/josephburnett/jd/v2  604.137s
 ```
 
-## Cookbook
-
-### Use git diff to produce a structural diff:
-```diff
-git difftool -yx jd @ -- foo.json
-@ ["foo"]
-- "bar"
-+ "baz"
+# То есть сначала фаззер грузит 961 пар в корпус, потом начинает находить новые. Как можно видеть, никакого покрытия нам не сообщают, а помещают все набранные корпуса в "~/.cache/go-build/fuzz/github.com/josephburnett/jd/v2/FuzzJdNaive/", перенесем их к себе командой (в testdata/fuzz фаззер будет заглядывать в том числе, чтобы поднять отуда соответствующие тесту корпуса. полезно переместить копию всех корпусов к себе, чтобы после очистки go кэша иметь все корпуса в сохранности):
+```
+$ cp ~/.cache/go-build/fuzz/github.com/josephburnett/jd/v2/FuzzJdNaive/* testdata/fuzz/FuzzJdNaive
 ```
 
-### See what changes in a Kubernetes Deployment:
-```bash
-kubectl get deployment example -oyaml > a.yaml
-kubectl edit deployment example
-# change cpu resource from 100m to 200m
-kubectl get deployment example -oyaml | jd -yaml a.yaml
+# Это сделано для того, чтобы фаззер мог считать внутренние метрики покрытия как ему угодно, не отвлекаясь на то, что мы тоже вообще-то хотим их знать. Для пользователей, однако, остается стандартный способ измерения покрытия "go test -covermode=atomic", надо только указать по флагу -run регулярное выражение, позволяющее найти все файлы с корпусами, на которых golang-у надо отбежать в стандартном тестовом режиме с подсчетом покрытия (с помощью -run в принципе можно таргетировать unit-тесты, а в случае если тесты - fuzzing, то го поймет что надо пойти раздобыть соответствующие корпуса и прогнать их как unit), чтобы go основывался только на корпусах, которые мы сохранили себе в testdata, а не находил их где то внутри у себя, предварительно еще почистим его fuzz-кэш:
 ```
-output:
-```diff
-@ ["metadata","annotations","deployment.kubernetes.io/revision"]
-- "2"
-+ "3"
-@ ["metadata","generation"]
-- 2
-+ 3
-@ ["metadata","resourceVersion"]
-- "4661"
-+ "5179"
-@ ["spec","template","spec","containers",0,"resources","requests","cpu"]
-- "100m"
-+ "200m"
-@ ["status","conditions",1,"lastUpdateTime"]
-- "2021-12-23T09:40:39Z"
-+ "2021-12-23T09:41:49Z"
-@ ["status","conditions",1,"message"]
-- "ReplicaSet \"nginx-deployment-787d795676\" has successfully progressed."
-+ "ReplicaSet \"nginx-deployment-795c7f5bb\" has successfully progressed."
-@ ["status","observedGeneration"]
-- 2
-+ 3
-```
-apply these change to another deployment:
-```bash
-# edit file "patch" to contain only the hunk updating cpu request
-kubectl patch deployment example2 --type json --patch "$(jd -t jd2patch ~/patch)"
+$ go clean --fuzzcache
+$ go test -run="^FuzzJdNaive$" -covermode=atomic
+PASS
+coverage: 62.9% of statements
+ok      github.com/josephburnett/jd/v2  1.698s
 ```
 
+# Теперь запустим наши тесты:
+```
+$ go test -fuzz=FuzzJdMy -fuzztime=600s
+warning: starting with empty corpus
+fuzz: elapsed: 0s, execs: 0 (0/sec), new interesting: 0 (total: 0)
+fuzz: elapsed: 3s, execs: 43112 (14370/sec), new interesting: 294 (total: 294)
+fuzz: elapsed: 6s, execs: 67392 (8093/sec), new interesting: 413 (total: 413)
+...
+fuzz: elapsed: 1m57s, execs: 1592405 (11504/sec), new interesting: 1081 (total: 1081)
+fuzz: elapsed: 1m59s, execs: 1632000 (16658/sec), new interesting: 1083 (total: 1083)
+--- FAIL: FuzzJdMy (119.38s)
+    --- FAIL: FuzzJdMy (0.00s)
+        --- FAIL: FuzzJdMy/jd_set (0.00s)
+            fuzz_my_test.go:178: Patch error (jd): invalid diff: expected object with id {" 01000xBl\u000070Z' 01000xBl\u000070Z' 01000xBl\u00007":[],"0xBl\u000070Z' 01000xBl\u000070Z' 01000xBl\u000070Z' 01000xBl\u00007":[]} but found none
+    
+    Failing input written to testdata/fuzz/FuzzJdMy/934ccb0893fbaa79
+    To re-run:
+    go test -run=FuzzJdMy/934ccb0893fbaa79
+FAIL
+exit status 1
+FAIL    github.com/josephburnett/jd/v2  119.869s
+```
+
+# Заберем сразу себе результаты сбора корпусов:
+
+```
+cp ~/.cache/go-build/fuzz/github.com/josephburnett/jd/v2/FuzzJdMy/* testdata/fuzz/FuzzJdMy
+```
+
+# Буквально за две минуты мы находим корпус, на котором авторы не ожидали увидеть ошибку (все t.Errorf() вызовы у них делаются только в случае, если что-то пошло не по плану). Можно, например, запуститься конкретно на проблемном корпусе, как предлагает сам го, и подебажить, вероятно тогда мы найдем источник проблемы и сможем сообщить об этом в PR. Важно, что паники (panic - второй тип ошибки (обычно в го передают ошибки методом возвращаемого из функции значения), именно он кидается, когда программа крашится без возможности восстановиться - когда память бьется или garbage collector-у не хватает памяти) мы тут не словили, просто получили неожиданное с точки зрения авторов поведение, но уже и это неплохо.
+
+# Мы можем также измерить на всех накопленных корпусах покрытие:
+
+```
+$ go clean --fuzzcache
+$ go test -run="^FuzzJdMy$" -covermode=atomic
+--- FAIL: FuzzJdMy (1.53s)
+    --- FAIL: FuzzJdMy/f1e4a48b96a0c84c (0.00s)
+        --- FAIL: FuzzJdMy/f1e4a48b96a0c84c/jd_set (0.00s)
+            fuzz_my_test.go:177: Patch error (jd): invalid diff: expected object with id {"003xb01Z\u00000808010)003xb01Z\u00000808010)003xb01":"","808010)003xb01Z\u00000808010)003xb01Z\u00000808010)003xb01":""} but found none
+FAIL
+coverage: 74.0% of statements
+exit status 1
+FAIL    github.com/josephburnett/jd/v2  1.546s
+```
+
+# Видно, что оно сильно выше (вылетающая ошибка естесственна, ведь она же и возникала на проблемном корпусе, на котором го остановил их сбор) чем у авторов, что и естесственно в свете выявления проблем во внутренней логике.

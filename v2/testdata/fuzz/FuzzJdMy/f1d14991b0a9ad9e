@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("z\x12\x90\x12\x12$\x12'")

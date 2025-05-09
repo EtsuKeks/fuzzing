@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("2007\xd51\xdc1\a7")

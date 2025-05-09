@@ -39,5 +39,5 @@ spec:
 }
 
 func TestDebug(t *testing.T) {
-	fuzz(t, `0`, ``)
+	fuzzNaive(t, `0`, ``)
 }

@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("GEc\x10\x1aGE$")

@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("711\"01\xdb\xdb\xdb)1")

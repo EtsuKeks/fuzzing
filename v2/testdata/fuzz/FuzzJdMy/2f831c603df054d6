@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("+y\xac,z'\x06,2'\x06")

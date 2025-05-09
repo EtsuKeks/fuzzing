@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("112x1\x838>\x832>")

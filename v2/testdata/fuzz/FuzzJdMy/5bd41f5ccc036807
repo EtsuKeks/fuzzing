@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("71\xcc%177)\x00Z\"_2010011012e810\xde12108.2A")

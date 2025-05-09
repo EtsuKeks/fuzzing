@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("70yy11\xec$\xff\xff\xff\xff\xff\xff\xffx")

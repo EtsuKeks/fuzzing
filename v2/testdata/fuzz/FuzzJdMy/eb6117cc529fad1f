@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("ct\xbd)0x8")

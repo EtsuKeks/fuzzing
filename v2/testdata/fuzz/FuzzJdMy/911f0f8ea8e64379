@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("2\x86a2Y'$\xf4020200009&b1\xd70\x12f02")

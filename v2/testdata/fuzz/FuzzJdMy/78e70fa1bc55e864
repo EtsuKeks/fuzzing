@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("721ZXb'\xdf\xdf\xdf\xdf\xdf%\xd81")

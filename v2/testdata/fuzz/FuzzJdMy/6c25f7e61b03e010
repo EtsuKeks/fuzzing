@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("c11y01+1\xdb)1")

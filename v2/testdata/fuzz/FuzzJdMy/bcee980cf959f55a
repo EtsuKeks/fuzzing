@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte(".2009#\x9d1%%p")

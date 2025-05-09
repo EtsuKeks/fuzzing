@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("7\x90\x90\x90\x90\x90,0A\x90\xa2\x90\x90tc+7'")
