@@ -189,7 +189,8 @@ func fuzzMy(t *testing.T, input []byte) {
 	compVal, err := GenerateOverlapJSON(cons, origVal, renameProb, mutateProb)
 
 	.....
-	// ^ Приводим наш origVal, compVal к массивам байт и валидируем json-схемы
+	// ^ Приводим наш origVal, compVal к массивам байт origBytes и compBytes 
+	// соответственно и валидируем json-схемы
 
 	// С вероятностью mutateArrProb портим origBytes - наш orig json-объект
 	n, err := getRandomIntUpToN(cons, 100)
